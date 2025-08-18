@@ -1,6 +1,5 @@
 package com.recepcao.correspondencia.controller;
 
-import com.recepcao.correspondencia.clients.AppConstants;
 import com.recepcao.correspondencia.config.APIExceptions;
 import com.recepcao.correspondencia.dto.CorrespondenciaComEmpresaDTO;
 import com.recepcao.correspondencia.dto.CorrespondenciaResponse;
@@ -20,6 +19,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -247,6 +247,15 @@ public class CorrespondenciaController {
             System.err.println("Erro interno ao atualizar data de aviso para ID " + id + ": " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @DeleteMapping("{id}")
+    public void apagarCorrespondencia(@PathVariable Long id) {
+        try {
+            correspondenciaService.apagarCorrespondencia(id);
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Erro ao apagar correspondência", e);
         }
     }
 

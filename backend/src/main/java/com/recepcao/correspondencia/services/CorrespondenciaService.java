@@ -317,5 +317,10 @@ public class CorrespondenciaService {
         return atualizada;
     }
 
+    public void apagarCorrespondencia(Long id){
+        Correspondencia correspondencia = correspondenciaRepository.findById(id)
+                .orElseThrow(() -> new APIExceptions("Correspondência não encontrada com ID: " + id));
+        correspondenciaRepository.delete(correspondencia);
+    }
 
 }
