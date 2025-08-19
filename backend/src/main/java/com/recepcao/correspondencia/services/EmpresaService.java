@@ -44,9 +44,16 @@ public class EmpresaService {
             throw new APIExceptions("Nenhuma empresa registrada até o momento");
         }
 
-        List<CustomerResponse> customerDTO = customers.stream().map(customer ->
-                modelMapper.map(customer, CustomerResponse.class))
-                .toList();
+        List<CustomerResponse> customerDTO = customers.stream().map(customer -> {
+            CustomerResponse dto = modelMapper.map(customer, CustomerResponse.class);
+            // Preencher statusEmpresa, se não existir, usar valor padrão
+            if (customer.getStatusEmpresa() != null && !customer.getStatusEmpresa().isEmpty()) {
+                dto.setStatusEmpresa(customer.getStatusEmpresa());
+            } else {
+                dto.setStatusEmpresa("ANALISE"); // Valor padrão se não existir
+            }
+            return dto;
+        }).toList();
 
 
         ConexaCustomerListResponse customerResponse = new ConexaCustomerListResponse();

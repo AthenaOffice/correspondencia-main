@@ -34,6 +34,8 @@ public class Customer {
     @Embedded
     private LegalPersonEntity legalPerson;
 
+    private String statusEmpresa; // Novo campo para status
+
     public Long getId() {
         return this.customerId;
     }

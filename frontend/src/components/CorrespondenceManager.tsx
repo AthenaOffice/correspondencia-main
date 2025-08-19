@@ -20,6 +20,7 @@ export interface CorrespondenciaDTO {
   dataRecebimento: string; // "YYYY-MM-DD" (string)
   dataAvisoConexa: string | null; // "YYYY-MM-DD" ou null
   fotoCorrespondencia: string | null; // base64 ou url, ou null
+  // Remover campos extras, manter apenas os originais
 }
 
 export const CorrespondenceManager: React.FC = () => {
@@ -32,17 +33,22 @@ export const CorrespondenceManager: React.FC = () => {
   const [editing, setEditing] = useState<CorrespondenciaDTO | null>(null);
 
   const [formData, setFormData] = useState<{
-  fotoCorrespondencia: string | null; // um único arquivo
-  nomeEmpresaConexa: string;
-  remetente: string;
+    fotoCorrespondencia: string | null; // um único arquivo
+    nomeEmpresaConexa: string;
+    remetente: string;
+    situacao?: string;
+    mensagem?: string;
   }>({
-  fotoCorrespondencia: null,
-  nomeEmpresaConexa: '',
-  remetente: '',
+    fotoCorrespondencia: null,
+    nomeEmpresaConexa: '',
+    remetente: '',
+    situacao: '',
+    mensagem: '',
   });
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'' | StatusCorresp>('');
+  // Remover estados de edição inline de situação/mensagem
 
   const carregar = async () => {
     setCarregando(true);
@@ -98,6 +104,8 @@ export const CorrespondenceManager: React.FC = () => {
           method: 'POST',
           body: form,
         });
+  // Disparar evento para notificar que uma empresa pode ter sido criada/atualizada
+  window.dispatchEvent(new CustomEvent('empresaAtualizada'));
       } else {
         // Sem foto, enviar como JSON para /processar-correspondencia
         await fetch('http://localhost:8080/api/correspondencias/processar-correspondencia', {
@@ -108,6 +116,8 @@ export const CorrespondenceManager: React.FC = () => {
             remetente: formData.remetente,
           }),
         });
+  // Disparar evento para notificar que uma empresa pode ter sido criada/atualizada
+  window.dispatchEvent(new CustomEvent('empresaAtualizada'));
       }
       await carregar();
       resetForm();
@@ -126,6 +136,8 @@ export const CorrespondenceManager: React.FC = () => {
     });
     setShowForm(true);
   };
+
+  // Remover funções de edição inline de situação/mensagem
 
   const apagarCorrespondenciaHandle = async (id: string) => {
     try {
@@ -301,9 +313,9 @@ export const CorrespondenceManager: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {carregando ? (
-                <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-500">Carregando...</td></tr>
+                <tr><td colSpan={10} className="px-6 py-12 text-center text-gray-500">Carregando...</td></tr>
               ) : erro ? (
-                <tr><td colSpan={5} className="px-6 py-12 text-center text-red-500">{erro}</td></tr>
+                <tr><td colSpan={10} className="px-6 py-12 text-center text-red-500">{erro}</td></tr>
               ) : filtered.length > 0 ? (
                 filtered.map((c) => (
                   <tr key={c.id} className="hover:bg-gray-50">
@@ -357,7 +369,7 @@ export const CorrespondenceManager: React.FC = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">Nenhuma correspondência encontrada</td>
+                  <td colSpan={10} className="px-6 py-12 text-center text-gray-500">Nenhuma correspondência encontrada</td>
                 </tr>
               )}
             </tbody>

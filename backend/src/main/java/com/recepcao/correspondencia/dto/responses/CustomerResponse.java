@@ -15,4 +15,5 @@ public class CustomerResponse {
     private List<String> phones;
     private Address address;
     private LegalPerson legalPerson;
+    private String statusEmpresa; // Novo campo para status
 }

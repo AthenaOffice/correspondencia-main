@@ -107,15 +107,15 @@ public class EmpresaController {
      */
     @PutMapping("/athena/alterar-empresa/modelo-athena/{id}")
     public ResponseEntity<Empresa> alterarStatusModeloAthena(@PathVariable Long id,
-                                                             @RequestParam(required = false) StatusEmpresa novoStatus,
-                                                             @RequestParam(required = false) Situacao novaSitucao,
+                                 @RequestParam(required = false) StatusEmpresa novoStatus,
+                                 @RequestParam(required = false) Situacao novaSituacao,
                                                              @RequestParam(required = false) String novaMensagem) {
-        Empresa empresaAtualizada = empresaService.alterarStatusModeloAthena(
-                id,
-                novoStatus,
-                novaSitucao,
-                novaMensagem
-        );
+    Empresa empresaAtualizada = empresaService.alterarStatusModeloAthena(
+        id,
+        novoStatus,
+        novaSituacao,
+        novaMensagem
+    );
 
         return ResponseEntity.ok(empresaAtualizada);
 

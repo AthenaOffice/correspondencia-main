@@ -2,8 +2,6 @@ package com.recepcao.correspondencia.services;
 
 import com.recepcao.correspondencia.clients.ConexaClients;
 import com.recepcao.correspondencia.dto.CorrespondenciaResponse;
-import com.recepcao.correspondencia.dto.HistoricoResponse;
-import com.recepcao.correspondencia.services.arquivos.EnderecoValidatorService;
 import com.recepcao.correspondencia.config.APIExceptions;
 import com.recepcao.correspondencia.dto.responses.CustomerResponse;
 import com.recepcao.correspondencia.entities.*;
@@ -16,6 +14,8 @@ import com.recepcao.correspondencia.repositories.CorrespondenciaRepository;
 import com.recepcao.correspondencia.repositories.CustomerRepository;
 import com.recepcao.correspondencia.repositories.EmpresaRepository;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -32,11 +32,13 @@ import com.recepcao.correspondencia.dto.CorrespondenciaComEmpresaDTO;
 @RequiredArgsConstructor
 public class CorrespondenciaService {
 
+    private static final Logger log = LoggerFactory.getLogger(CorrespondenciaService.class);
+
     private final CorrespondenciaRepository correspondenciaRepository;
     private final EmpresaRepository empresaRepository;
     private final ConexaClients conexaClient;
     private final EmailService emailService;
-    private final EnderecoValidatorService enderecoValidatorService;
+    // enderecoValidatorService removido porque não é utilizado neste serviço
     private final HistoricoService historicoService;
     private final CustomerRepository customerRepository;
 
@@ -103,7 +105,9 @@ public class CorrespondenciaService {
     }
 
     public Correspondencia processarCorrespondencia(Correspondencia correspondencia) {
-        List<CustomerResponse> empresasEncontradas = verificarEmpresaConexa(correspondencia.getNomeEmpresaConexa());
+    log.debug("Iniciando processamento de correspondencia para empresa='{}' remetente='{}'", correspondencia.getNomeEmpresaConexa(), correspondencia.getRemetente());
+    List<CustomerResponse> empresasEncontradas = verificarEmpresaConexa(correspondencia.getNomeEmpresaConexa());
+    log.debug("Resultado da busca no Conexa ({} resultados) para '{}'", empresasEncontradas.size(), correspondencia.getNomeEmpresaConexa());
         correspondencia.setDataRecebimento(LocalDate.now());
 
         if (!empresasEncontradas.isEmpty()) {
@@ -113,7 +117,8 @@ public class CorrespondenciaService {
             Optional<Customer> customerExistente = customerRepository.findById(customer.getCustomerId());
             if (customerExistente.isEmpty()) {
                 Customer customerEntity = CustomerResponseMapper.fromCustomerResponse(customer);
-                customerRepository.save(customerEntity);
+                Customer savedCustomer = customerRepository.save(customerEntity);
+                log.debug("Customer salvo no banco com id={} name={}", savedCustomer.getId(), savedCustomer.getName());
             }
 
             if (customer.getLegalPerson() == null || customer.getLegalPerson().getCnpj() == null || customer.getLegalPerson().getCnpj().isEmpty()) {
@@ -130,8 +135,10 @@ public class CorrespondenciaService {
                     novaEmpresa.setSituacao(Situacao.CPF);
                     novaEmpresa.setMensagem("Necessário aditivo contratual para alterar CPF para CNPJ");
                     empresaSalva = empresaRepository.save(novaEmpresa);
+                    log.debug("Empresa criada (sem CNPJ) id={} nome={}", empresaSalva.getId(), empresaSalva.getNomeEmpresa());
                 } else {
                     empresaSalva = empresaExistente.get();
+                    log.debug("Empresa já existe (sem CNPJ) id={} nome={}", empresaSalva.getId(), empresaSalva.getNomeEmpresa());
                 }
 
                emailService.enviarEmailSolicitandoAditivo(
@@ -158,8 +165,10 @@ public class CorrespondenciaService {
                 if (empresaExistente.isEmpty()) {
                     Empresa novaEmpresa = EmpresaMapper.fromCustomerResponse(customer);
                     empresaSalva = empresaRepository.save(novaEmpresa);
+                    log.debug("Empresa criada id={} nome={}", empresaSalva.getId(), empresaSalva.getNomeEmpresa());
                 } else {
                     empresaSalva = empresaExistente.get();
+                    log.debug("Empresa já existe id={} nome={}", empresaSalva.getId(), empresaSalva.getNomeEmpresa());
                 }
 
                 /*emailService.enviarEmailAvisoCorrespondencia(
