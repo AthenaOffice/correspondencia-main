@@ -1,14 +1,15 @@
 //todo: trocar o localhost pela var de ambiente que recebe o dominio
 
-export async function buscarCorrespondencias(){
+export async function buscarCorrespondencias(pageNumber: number = 0, pageSize: number = 50){
     try {
-        const response = await fetch('http://localhost:8080/api/correspondencias/listar-correspondencia');
-        if (!response.ok) throw new Error('Erro ao buscar empresas');
-        
+        const url = `http://localhost:8080/api/correspondencias/listar-correspondencia?pageNumber=${pageNumber}&pageSize=${pageSize}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Erro ao buscar correspondências');
+
         return response.json();
     } catch (error) {
         console.error(error);
-        throw new Error('Erro ao buscar empresas');
+        throw new Error('Erro ao buscar correspondências');
     }
 }
 export async function salvarCorrespondencia(correspondencia: any){

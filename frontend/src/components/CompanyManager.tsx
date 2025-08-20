@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Search, Building } from 'lucide-react';
-import { buscarEmpresas } from '../service/empresa';
+// buscamos dinamicamente todas as empresas via importar função buscarTodasEmpresas quando necessário
 
 export const CompanyManager: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [empresas, setEmpresas] = useState<any[]>([]);
+  // carregar todas as empresas (sem paginação na UI para mostrar tudo cadastrado via correspondência)
   const [editSituacaoId, setEditSituacaoId] = useState<number | null>(null);
   const [editSituacao, setEditSituacao] = useState('');
   const [editMensagemId, setEditMensagemId] = useState<number | null>(null);
@@ -21,10 +22,11 @@ export const CompanyManager: React.FC = () => {
 
   const buscarEmpresasList = async () => {
     try {
-      const empresas = await buscarEmpresas();
+  const empresas = await (await import('../service/empresa')).buscarTodasEmpresas(50);
       console.log(empresas);
       // Athena: empresas vêm em empresas.content
-      setEmpresas(empresas.content || []);
+  setEmpresas(empresas.content || []);
+  // sempre mostramos tudo no UI
     } catch (error) {
       console.error(error);
     }
@@ -190,6 +192,7 @@ export const CompanyManager: React.FC = () => {
           </div>
         )}
       </div>
+  {/* mostramos todas as empresas; sem paginação */}
     </div>
   );
 };

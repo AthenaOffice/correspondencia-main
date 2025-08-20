@@ -217,6 +217,39 @@ public class CorrespondenciaService {
                 // Endereço não é da Athena - devolução normal
                 correspondencia.setStatusCorresp(StatusCorresp.DEVOLVIDA);
 
+                // Criar um registro de Empresa básico para que apareça na aba de Empresas
+                try {
+                    // Verifica se já existe empresa com mesmo nome (ignora duplicatas)
+                    Optional<Empresa> existente = empresaRepository.findByNomeEmpresa(correspondencia.getNomeEmpresaConexa());
+                    if (existente.isEmpty()) {
+                        Empresa novaEmpresa = new Empresa();
+                        novaEmpresa.setNomeEmpresa(correspondencia.getNomeEmpresaConexa());
+                        novaEmpresa.setCnpj(null);
+                        novaEmpresa.setUnidade(null);
+                        novaEmpresa.setEmail(null);
+                        novaEmpresa.setTelefone(null);
+                        novaEmpresa.setEndereco(null);
+                        novaEmpresa.setStatusEmpresa(StatusEmpresa.AGUARDANDO);
+                        // Não sabemos se é CPF ou CNPJ; marcar como CNPJ por padrão (pode ser ajustado manualmente)
+                        novaEmpresa.setSituacao(Situacao.CNPJ);
+                        novaEmpresa.setMensagem(null);
+
+                        Empresa empresaSalva = empresaRepository.save(novaEmpresa);
+                        log.debug("Empresa criada a partir de correspondencia (fallback) id={} nome={}", empresaSalva.getId(), empresaSalva.getNomeEmpresa());
+
+                        historicoService.registrar(
+                                "Empresa",
+                                empresaSalva.getId(),
+                                "Empresa criada via correspondencia",
+                                "Empresa criada automaticamente a partir de correspondência com nome '" + empresaSalva.getNomeEmpresa() + "'."
+                        );
+                    } else {
+                        log.debug("Empresa com o nome '{}' já existe, pulando criação fallback.", correspondencia.getNomeEmpresaConexa());
+                    }
+                } catch (Exception e) {
+                    log.error("Erro ao criar empresa fallback: {}", e.getMessage());
+                }
+
                 historicoService.registrar(
                         "Correspondencia",
                         correspondencia.getId(),
@@ -248,6 +281,26 @@ public class CorrespondenciaService {
         );
 
         return atualizada;
+    }
+
+    /**
+     * Atualiza a data de aviso de uma correspondência
+     */
+    public Correspondencia atualizarDataAviso(Long id, java.time.LocalDate dataAviso) {
+    Correspondencia correspondencia = correspondenciaRepository.findById(id)
+        .orElseThrow(() -> new APIExceptions("Correspondência não encontrada com ID: " + id));
+
+    correspondencia.setDataAvisoConexa(dataAviso);
+    Correspondencia atualizada = correspondenciaRepository.save(correspondencia);
+
+    historicoService.registrar(
+        "Correspondencia",
+        atualizada.getId(),
+        "Data de aviso atualizada",
+        "Data de aviso alterada para '" + dataAviso + "'."
+    );
+
+    return atualizada;
     }
 
     /**
@@ -296,40 +349,56 @@ public class CorrespondenciaService {
             }
         }
 
+                try {
+                    // Evitar criar duplicata: verificar existência por nome (trim e ignorar case se possível)
+                    String nomeBusca = correspondencia.getNomeEmpresaConexa() != null ? correspondencia.getNomeEmpresaConexa().trim() : "";
+                    Optional<Empresa> empresaExistenteFallback = empresaRepository.findByNomeEmpresa(nomeBusca);
+                    Empresa empresaSalva = null;
+
+                    if (empresaExistenteFallback.isEmpty()) {
+                        Empresa novaEmpresa = new Empresa();
+                        novaEmpresa.setNomeEmpresa(nomeBusca);
+                        novaEmpresa.setCnpj(null);
+                        novaEmpresa.setUnidade(null);
+                        novaEmpresa.setEmail(null);
+                        novaEmpresa.setTelefone(null);
+                        novaEmpresa.setEndereco(null);
+                        novaEmpresa.setStatusEmpresa(StatusEmpresa.AGUARDANDO);
+                        // Marcar como CNPJ por padrão — pode ser ajustado manualmente depois
+                        novaEmpresa.setSituacao(Situacao.CNPJ);
+                        novaEmpresa.setMensagem(null);
+
+                        empresaSalva = empresaRepository.save(novaEmpresa);
+                        log.debug("Empresa criada a partir de correspondencia (fallback) id={} nome={}", empresaSalva.getId(), empresaSalva.getNomeEmpresa());
+
+                        historicoService.registrar(
+                                "Empresa",
+                                empresaSalva.getId(),
+                                "Empresa criada via correspondencia",
+                                "Empresa criada automaticamente a partir de correspondência com nome '" + empresaSalva.getNomeEmpresa() + "'."
+                        );
+                    } else {
+                        empresaSalva = empresaExistenteFallback.get();
+                        log.debug("Empresa já existe (fallback) id={} nome={}", empresaSalva.getId(), empresaSalva.getNomeEmpresa());
+                    }
+                } catch (Exception e) {
+                    log.error("Erro ao criar empresa fallback: {}", e.getMessage());
+                }
+                
         return dto;
-    }
-
-    /**
-     * Busca histórico por ação realizada
-     */
-    public List<HistoricoInteracao> buscarHistoricoPorAcao(String acaoRealizada) {
-        return null; // historicoRepository.findByAcaoRealizadaContainingIgnoreCase(acaoRealizada);
-    }
-
-    /**
-     * Atualiza a data de aviso de uma correspondência
-     */
-    public Correspondencia atualizarDataAviso(Long id, LocalDate dataAviso) {
-        Correspondencia correspondencia = correspondenciaRepository.findById(id)
-                .orElseThrow(() -> new APIExceptions("Correspondência não encontrada com ID: " + id));
-
-        correspondencia.setDataAvisoConexa(dataAviso);
-        Correspondencia atualizada = correspondenciaRepository.save(correspondencia);
-
-        historicoService.registrar(
-                "Correspondencia",
-                atualizada.getId(),
-                "Data de Aviso Atualizada",
-                "Data de aviso alterada para: " + dataAviso
-        );
-
-        return atualizada;
     }
 
     public void apagarCorrespondencia(Long id){
         Correspondencia correspondencia = correspondenciaRepository.findById(id)
                 .orElseThrow(() -> new APIExceptions("Correspondência não encontrada com ID: " + id));
-        correspondenciaRepository.delete(correspondencia);
+    correspondenciaRepository.delete(correspondencia);
+
+    historicoService.registrar(
+        "Correspondencia",
+        id,
+        "EXCLUIR",
+        "Correspondência de '" + correspondencia.getRemetente() + "' excluída."
+    );
     }
 
 }

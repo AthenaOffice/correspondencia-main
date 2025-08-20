@@ -12,6 +12,7 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
     private final EmailConfig emailConfig;
+    private final HistoricoService historicoService;
 
     public void enviarEmailSolicitandoAditivo(String emailDestino, String nomeEmpresa) {
         SimpleMailMessage message = new SimpleMailMessage();
@@ -24,7 +25,15 @@ public class EmailService {
                 "para realizar a atualização para CNPJ e regularizar seu contrato.\n\n" +
                 "Atenciosamente,\nEquipe Athena Office");
 
-        mailSender.send(message);
+    mailSender.send(message);
+
+    // Registrar no histórico que um e-mail de aditivo foi enviado
+    historicoService.registrar(
+        "Empresa",
+        null,
+        "ENVIAR_EMAIL_ADITIVO",
+        "E-mail solicitando aditivo enviado para: " + emailDestino + " (empresa: " + nomeEmpresa + ")"
+    );
     }
 
     public void enviarEmailUsoIndevido(String emailDestino, String nomeEmpresa) {
@@ -35,7 +44,14 @@ public class EmailService {
         message.setText("Alerta: Identificamos que a empresa \"" + nomeEmpresa + "\" está utilizando um endereço da Athena Office sem contrato ativo.\n" +
                 "Favor verificar e tomar as providências cabíveis.");
 
-        mailSender.send(message);
+    mailSender.send(message);
+
+    historicoService.registrar(
+        "Empresa",
+        null,
+        "ENVIAR_EMAIL_USO_INDEVIDO",
+        "E-mail de uso indevido enviado para: " + emailDestino + " (empresa: " + nomeEmpresa + ")"
+    );
     }
 
 
@@ -46,7 +62,14 @@ public class EmailService {
         message.setSubject("Athena Office - Correspondência");
         message.setText("");
 
-        mailSender.send(message);
+    mailSender.send(message);
+
+    historicoService.registrar(
+        "Correspondencia",
+        null,
+        "ENVIAR_EMAIL_AVISO",
+        "E-mail de aviso de correspondência enviado para: " + emailDestino + " (empresa: " + nomeEmpresa + ")"
+    );
     }
 }
 

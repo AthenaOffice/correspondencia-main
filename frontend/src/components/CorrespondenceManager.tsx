@@ -28,6 +28,9 @@ export const CorrespondenceManager: React.FC = () => {
   const [lista, setLista] = useState<CorrespondenciaDTO[]>([]);
   const [carregando, setCarregando] = useState<boolean>(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [pageNumber, setPageNumber] = useState<number>(0);
+  const [pageSize] = useState<number>(50);
+  const [totalPages, setTotalPages] = useState<number>(0);
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<CorrespondenciaDTO | null>(null);
@@ -54,9 +57,10 @@ export const CorrespondenceManager: React.FC = () => {
     setCarregando(true);
     setErro(null);
     try {
-      const resp = await buscarCorrespondencias();
+      const resp = await buscarCorrespondencias(pageNumber, pageSize);
       // Assumindo resp.content no formato do DTO
       setLista(resp?.content ?? []);
+      setTotalPages(resp?.totalPages ?? 0);
     } catch (e: any) {
       setErro(e?.message ?? 'Falha ao buscar correspondências');
     } finally {
@@ -66,7 +70,7 @@ export const CorrespondenceManager: React.FC = () => {
 
   useEffect(() => {
     carregar();
-  }, []);
+  }, [pageNumber]);
 
   const resetForm = () => {
     setFormData({
@@ -374,6 +378,23 @@ export const CorrespondenceManager: React.FC = () => {
               )}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Pagination controls */}
+      <div className="flex items-center justify-between mt-4">
+        <div className="text-sm text-gray-600">Página {pageNumber + 1} de {totalPages || 1}</div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setPageNumber(p => Math.max(0, p - 1))}
+            disabled={pageNumber <= 0}
+            className="px-3 py-1 bg-gray-100 rounded disabled:opacity-50"
+          >Anterior</button>
+          <button
+            onClick={() => setPageNumber(p => (totalPages ? Math.min(totalPages - 1, p + 1) : p + 1))}
+            disabled={totalPages ? pageNumber >= totalPages - 1 : false}
+            className="px-3 py-1 bg-gray-100 rounded disabled:opacity-50"
+          >Próxima</button>
         </div>
       </div>
     </div>

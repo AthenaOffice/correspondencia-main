@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
-import { Calendar, Search, Filter, FileText, Building, Mail } from 'lucide-react';
+import { Search, Filter, FileText, Building, Mail } from 'lucide-react';
 
 export const AuditLog: React.FC = () => {
-  const { auditLogs } = useData();
+  const { auditLogs, auditPageNumber, auditTotalPages, loadAuditPage } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   const [entityFilter, setEntityFilter] = useState('');
   const [actionFilter, setActionFilter] = useState('');
@@ -96,76 +96,41 @@ export const AuditLog: React.FC = () => {
         </div>
       </div>
 
-      {/* Audit Log List */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Data/Hora
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Entidade
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ação
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Detalhes
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {sortedLogs.length > 0 ? (
-                sortedLogs.map((log) => {
-                  const EntityIcon = getEntityIcon(log.entidade);
-                  return (
-                    <tr key={log.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-gray-400" />
-                          <div>
-                            <div>{new Date(log.dataHora).toLocaleDateString('pt-BR')}</div>
-                            <div className="text-xs text-gray-500">
-                              {new Date(log.dataHora).toLocaleTimeString('pt-BR')}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <EntityIcon className="w-4 h-4 text-gray-500" />
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getEntityColor(log.entidade)}`}>
-                            {log.entidade === 'COMPANY' ? 'Empresa' : 'Correspondência'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getActionColor(log.acaoRealizada)}`}>
-                          {log.acaoRealizada}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {log.detalhe || '-'}
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
-                    <FileText className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                    Nenhum registro de auditoria encontrado
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+      {/* Audit Log List (simple one-line-per-record list) */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        {sortedLogs.length > 0 ? (
+          <ul className="divide-y">
+            {sortedLogs.map((log) => {
+              const EntityIcon = getEntityIcon(log.entidade);
+              return (
+                <li key={log.id} className="py-3">
+                  <div className="flex items-center gap-3 text-sm text-gray-800">
+                    <span className="w-36 text-xs text-gray-500">
+                      {new Date(log.dataHora).toLocaleDateString('pt-BR')} {new Date(log.dataHora).toLocaleTimeString('pt-BR')}
+                    </span>
+                    <EntityIcon className="w-4 h-4 text-gray-400" />
+                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getEntityColor(log.entidade)}`}>
+                      {log.entidade === 'COMPANY' ? 'Empresa' : 'Correspondência'}
+                    </span>
+                    <span className={`ml-2 px-2 py-0.5 text-xs font-medium rounded-full ${getActionColor(log.acaoRealizada)}`}>
+                      {log.acaoRealizada}
+                    </span>
+                    <span className="flex-1 ml-4 text-gray-900">{log.detalhe || '-'}</span>
+                    <span className="text-xs text-gray-500">ID: {log.entidadeId ?? '-'}</span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <div className="text-center py-12 text-gray-500">
+            <FileText className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+            Nenhum registro de auditoria encontrado
+          </div>
+        )}
       </div>
 
-      {/* Summary Stats */}
+  {/* Summary Stats */}
       {sortedLogs.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Resumo</h3>
@@ -191,6 +156,22 @@ export const AuditLog: React.FC = () => {
           </div>
         </div>
       )}
+  {/* Pagination controls */}
+  <div className="flex items-center justify-between mt-4">
+    <div className="text-sm text-gray-600">Página { (auditPageNumber ?? 0) + 1 } de {auditTotalPages || 1}</div>
+    <div className="flex gap-2">
+      <button
+        onClick={() => loadAuditPage(Math.max(0, (auditPageNumber ?? 0) - 1))}
+        disabled={(auditPageNumber ?? 0) <= 0}
+        className="px-3 py-1 bg-gray-100 rounded disabled:opacity-50"
+      >Anterior</button>
+      <button
+        onClick={() => loadAuditPage((auditPageNumber ?? 0) + 1)}
+        disabled={(auditPageNumber ?? 0) >= ((auditTotalPages ?? 1) - 1)}
+        className="px-3 py-1 bg-gray-100 rounded disabled:opacity-50"
+      >Próxima</button>
+    </div>
+  </div>
     </div>
   );
 };
