@@ -19,7 +19,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
+// import removido: ResponseStatusException não é utilizado neste controller
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,6 +29,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/correspondencias")
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:5174"})
 @RequiredArgsConstructor
 public class CorrespondenciaController {
 
@@ -250,12 +251,39 @@ public class CorrespondenciaController {
         }
     }
 
-    @DeleteMapping("{id}")
-    public void apagarCorrespondencia(@PathVariable Long id) {
+    /**
+     * Atualiza campos de uma correspondência (parcial).
+     * Ex: PUT /api/correspondencias/{id}
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<Correspondencia> atualizarCorrespondencia(@PathVariable Long id, @RequestBody Correspondencia updates) {
+        try {
+            Correspondencia atualizada = correspondenciaService.atualizarCorrespondencia(id, updates);
+            return ResponseEntity.ok(atualizada);
+        } catch (APIExceptions e) {
+            System.err.println("Erro ao atualizar correspondência ID " + id + ": " + e.getMessage());
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            System.err.println("Erro interno ao atualizar correspondência ID " + id + ": " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> apagarCorrespondencia(@PathVariable Long id) {
+        System.out.println("[CorrespondenciaController] Recebida requisição DELETE /api/correspondencias/" + id);
         try {
             correspondenciaService.apagarCorrespondencia(id);
+            System.out.println("[CorrespondenciaController] Correspondência " + id + " apagada com sucesso");
+            return ResponseEntity.ok().build();
+        } catch (APIExceptions e) {
+            System.err.println("[CorrespondenciaController] Não encontrada correspondência " + id + ": " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Correspondência não encontrada");
         } catch (Exception e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Erro ao apagar correspondência", e);
+            System.err.println("[CorrespondenciaController] Erro ao apagar correspondência " + id + ": " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Erro ao apagar correspondência");
         }
     }
 

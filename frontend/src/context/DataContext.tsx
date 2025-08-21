@@ -53,11 +53,30 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   // function to load a specific audit page (used by UI)
   const loadAuditPage = async (pageNumber: number) => {
     try {
-      const resp = await fetch(`/api/historicos/todos-processos?pageNumber=${pageNumber}&pageSize=${auditPageSize}&sortBy=dataHora&sortOrder=desc`);
+  const resp = await fetch(`http://localhost:8080/api/historicos/todos-processos?pageNumber=${pageNumber}&pageSize=${auditPageSize}&sortBy=dataHora&sortOrder=desc`);
       if (!resp.ok) throw new Error('Erro ao buscar histórico');
       const body = await resp.json();
       const items = body.content || [];
-      setAuditLogs(items.map((log: any) => ({ ...log, dataHora: new Date(log.dataHora) })));
+
+      // Normalize action strings to canonical actions (CRIAR, ATUALIZAR, EXCLUIR)
+      const normalizeAction = (raw: string | undefined, detalhe: string | undefined) => {
+        const text = ((raw || '') + ' ' + (detalhe || '')).toLowerCase();
+        if (text.includes('exclu') || text.includes('remov') || text.includes('delet')) return 'EXCLUIR';
+        if (text.includes('atualiz') || text.includes('alterad') || text.includes('status alterad') || text.includes('status/situ')) return 'ATUALIZAR';
+        if (text.includes('criad') || text.includes('criou') || text.includes('recebimento') || text.includes('recebido') || text.includes('empresa criada') || text.includes('recebimento de correspondência')) return 'CRIAR';
+        // fallback: if the raw equals a canonical action already
+        if ((raw || '').toUpperCase() === 'CRIAR' || (raw || '').toUpperCase() === 'ATUALIZAR' || (raw || '').toUpperCase() === 'EXCLUIR') return (raw || '').toUpperCase();
+        return raw || 'OUTRA';
+      };
+
+      const normalized = items.map((log: any) => ({
+        ...log,
+        dataHora: new Date(log.dataHora),
+        acaoRealizada: normalizeAction(log.acaoRealizada, log.detalhe),
+        entidade: (log.entidade || '').toUpperCase(),
+      }));
+
+      setAuditLogs(normalized);
       setAuditPageNumber(body.pageNumber ?? pageNumber);
       setAuditTotalPages(body.totalPages ?? 0);
     } catch (e) {
@@ -67,23 +86,38 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   // Ouve evento global disparado quando uma empresa pode ter sido criada/atualizada
   useEffect(() => {
-    const onEmpresaAtualizada = () => {
-      // Adiciona um registro de auditoria local para visibilidade imediata
+    const onEmpresaAtualizada = (ev: Event) => {
+      console.debug('[DataContext] evento empresaAtualizada recebido', ev);
+      // Extrai detalhes do evento se existir
+      // @ts-ignore
+      const detail = (ev as CustomEvent)?.detail || {};
+      console.debug('[DataContext] detalhe do evento', detail);
+      const acao = detail?.acao || 'CRIAR';
+      const entidade = detail?.entidade || 'COMPANY';
+      const entidadeId = detail?.id || Date.now();
+
+      // Adiciona um registro de auditoria local com a ação correta
       addAuditLog({
-        entidadeId: Date.now(),
-        acaoRealizada: 'CRIAR',
-        detalhe: `Empresa criada via correspondência`,
-        entidade: 'COMPANY',
+        entidadeId: entidadeId,
+        acaoRealizada: acao,
+        detalhe: `${entidade} ${acao} via interface`,
+        entidade: entidade.toUpperCase(),
       });
 
       // Recarrega página 0 do histórico (pequeno delay para backend persistir)
       setTimeout(() => {
+        console.debug('[DataContext] recarregando historico (pagina 0)');
         loadAuditPage(0).catch(() => {/* ignore */});
       }, 600);
 
-      // Mostrar mensagem de comemoração por alguns segundos
-      setCelebrationMessage('Empresa criada com sucesso 🎉');
-      setTimeout(() => setCelebrationMessage(null), 3500);
+      // Mostrar mensagem curta dependendo da ação
+      if (acao === 'CRIAR') {
+        setCelebrationMessage('Criado com sucesso 🎉');
+        setTimeout(() => setCelebrationMessage(null), 3500);
+      } else if (acao === 'EXCLUIR') {
+        setCelebrationMessage('Excluído');
+        setTimeout(() => setCelebrationMessage(null), 1800);
+      }
     };
 
     window.addEventListener('empresaAtualizada', onEmpresaAtualizada as EventListener);

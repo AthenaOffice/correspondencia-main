@@ -45,6 +45,15 @@ export const AuditLog: React.FC = () => {
     }
   };
 
+  const normalizeAction = (raw: string | undefined, detalhe: string | undefined) => {
+    const text = ((raw || '') + ' ' + (detalhe || '')).toLowerCase();
+    if (text.includes('exclu') || text.includes('remov') || text.includes('delet') || text.includes('apag')) return 'EXCLUIR';
+    if (text.includes('atualiz') || text.includes('alterad') || text.includes('status alterad') || text.includes('status/situ')) return 'ATUALIZAR';
+    if (text.includes('criad') || text.includes('criou') || text.includes('recebiment') || text.includes('empresa criada') || text.includes('recebimento de correspondência') || text.includes('aviso')) return 'CRIAR';
+    if ((raw || '').toUpperCase() === 'CRIAR' || (raw || '').toUpperCase() === 'ATUALIZAR' || (raw || '').toUpperCase() === 'EXCLUIR') return (raw || '').toUpperCase();
+    return raw || 'OUTRA';
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -137,19 +146,19 @@ export const AuditLog: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">
-                {auditLogs.filter(log => log.acaoRealizada === 'CRIAR').length}
-              </div>
+                  {auditLogs.filter(log => normalizeAction(log.acaoRealizada, log.detalhe) === 'CRIAR').length}
+                </div>
               <div className="text-sm text-gray-600">Registros Criados</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-yellow-600">
-                {auditLogs.filter(log => log.acaoRealizada === 'ATUALIZAR').length}
+                {auditLogs.filter(log => normalizeAction(log.acaoRealizada, log.detalhe) === 'ATUALIZAR').length}
               </div>
               <div className="text-sm text-gray-600">Registros Atualizados</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-red-600">
-                {auditLogs.filter(log => log.acaoRealizada === 'EXCLUIR').length}
+                {auditLogs.filter(log => normalizeAction(log.acaoRealizada, log.detalhe) === 'EXCLUIR').length}
               </div>
               <div className="text-sm text-gray-600">Registros Excluídos</div>
             </div>

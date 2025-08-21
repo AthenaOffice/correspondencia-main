@@ -36,16 +36,19 @@ export const CompanyManager: React.FC = () => {
     buscarEmpresasList();
 
     const handler = () => {
+      console.debug('[CompanyManager] evento empresaAtualizada recebido - atualizando lista');
       buscarEmpresasList();
     };
 
+    console.debug('[CompanyManager] registrando listener empresaAtualizada');
     window.addEventListener('empresaAtualizada', handler as EventListener);
     return () => {
+      console.debug('[CompanyManager] removendo listener empresaAtualizada');
       window.removeEventListener('empresaAtualizada', handler as EventListener);
     };
   }, []);
 
-  return (
+            return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">

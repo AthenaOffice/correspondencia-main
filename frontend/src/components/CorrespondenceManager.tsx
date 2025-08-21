@@ -8,7 +8,7 @@ import {
   Image as ImageIcon,
   Trash
 } from 'lucide-react';
-import { apagarCorrespondencia, buscarCorrespondencias, salvarCorrespondencia } from '../service/correspondencia';
+import { apagarCorrespondencia, buscarCorrespondencias, atualizarCorrespondencia } from '../service/correspondencia';
 
 // Tipos do novo schema
 export type StatusCorresp = 'AVISADA' | 'DEVOLVIDA' | 'USO_INDEVIDO' | 'ANALISE';
@@ -84,6 +84,29 @@ export const CorrespondenceManager: React.FC = () => {
     e.preventDefault();
 
     try {
+      if (editing) {
+        // Atualizar correspondência existente via serviço (centralizado)
+        console.debug('[CorrespondenceManager] atualizando correspondência id=', editing.id);
+        const payload: any = {
+          nomeEmpresaConexa: formData.nomeEmpresaConexa,
+          remetente: formData.remetente,
+        };
+        if (formData.fotoCorrespondencia) payload.fotoCorrespondencia = formData.fotoCorrespondencia;
+        if (formData.situacao) payload.situacao = formData.situacao;
+        if (formData.mensagem) payload.mensagem = formData.mensagem;
+
+        const updated = await atualizarCorrespondencia(editing.id, payload);
+        // Atualiza lista local
+        setLista(prev => prev.map(p => (p.id === updated.id ? updated : p)));
+  // Disparar evento com detalhe para que outros componentes (ex: CompanyManager/DataContext) atualizem
+  console.debug('[CorrespondenceManager] dispatch empresaAtualizada após atualização');
+  window.dispatchEvent(new CustomEvent('empresaAtualizada', { detail: { entidade: 'Correspondencia', acao: 'ATUALIZAR', id: updated.id } }));
+        await carregar();
+        resetForm();
+        setShowForm(false);
+        return;
+      }
+
       if (formData.fotoCorrespondencia) {
         // Se houver foto, enviar como multipart para /processar-correspondencia/receber-com-foto
         const form = new FormData();
@@ -104,15 +127,20 @@ export const CorrespondenceManager: React.FC = () => {
         const file = new File([u8arr], 'foto.png', { type: mime });
         form.append('foto', file);
 
-        await fetch('http://localhost:8080/api/correspondencias/processar-correspondencia/receber-com-foto', {
+        const respFoto = await fetch('http://localhost:8080/api/correspondencias/processar-correspondencia/receber-com-foto', {
           method: 'POST',
           body: form,
         });
-  // Disparar evento para notificar que uma empresa pode ter sido criada/atualizada
-  window.dispatchEvent(new CustomEvent('empresaAtualizada'));
+        let createdFoto: any = null;
+        if (respFoto.ok) {
+          try { createdFoto = await respFoto.json(); } catch { /* ignore */ }
+        }
+        // Disparar evento para notificar que uma empresa pode ter sido criada/atualizada
+        console.debug('[CorrespondenceManager] dispatch empresaAtualizada (com foto)');
+        window.dispatchEvent(new CustomEvent('empresaAtualizada', { detail: { entidade: 'Correspondencia', acao: 'CRIAR', id: createdFoto?.id } }));
       } else {
         // Sem foto, enviar como JSON para /processar-correspondencia
-        await fetch('http://localhost:8080/api/correspondencias/processar-correspondencia', {
+        const respCriar = await fetch('http://localhost:8080/api/correspondencias/processar-correspondencia', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -120,8 +148,13 @@ export const CorrespondenceManager: React.FC = () => {
             remetente: formData.remetente,
           }),
         });
-  // Disparar evento para notificar que uma empresa pode ter sido criada/atualizada
-  window.dispatchEvent(new CustomEvent('empresaAtualizada'));
+        let created: any = null;
+        if (respCriar.ok) {
+          try { created = await respCriar.json(); } catch { /* ignore */ }
+        }
+        // Disparar evento para notificar que uma correspondência (ou empresa) foi criada
+        console.debug('[CorrespondenceManager] dispatch empresaAtualizada (sem foto)');
+        window.dispatchEvent(new CustomEvent('empresaAtualizada', { detail: { entidade: 'Correspondencia', acao: 'CRIAR', id: created?.id } }));
       }
       await carregar();
       resetForm();
@@ -145,8 +178,11 @@ export const CorrespondenceManager: React.FC = () => {
 
   const apagarCorrespondenciaHandle = async (id: string) => {
     try {
-      await apagarCorrespondencia(id);
-      setLista(prev => prev.filter(c => String(c.id) !== id));
+  await apagarCorrespondencia(id);
+  // Atualiza lista local e dispara evento
+  setLista(prev => prev.filter(c => String(c.id) !== id));
+  console.debug('[CorrespondenceManager] dispatch empresaAtualizada após exclusão');
+  window.dispatchEvent(new CustomEvent('empresaAtualizada', { detail: { entidade: 'Correspondencia', acao: 'EXCLUIR', id } }));
     } catch (error) {
       console.error(error);
     }

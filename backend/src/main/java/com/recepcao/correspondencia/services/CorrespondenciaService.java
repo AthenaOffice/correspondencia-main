@@ -389,16 +389,51 @@ public class CorrespondenciaService {
     }
 
     public void apagarCorrespondencia(Long id){
+        log.info("Apagando correspondência id={}", id);
         Correspondencia correspondencia = correspondenciaRepository.findById(id)
                 .orElseThrow(() -> new APIExceptions("Correspondência não encontrada com ID: " + id));
-    correspondenciaRepository.delete(correspondencia);
+        correspondenciaRepository.delete(correspondencia);
+        log.info("Correspondência id={} deletada do repositório", id);
+
+        // Registrar historico de exclusão
+        try {
+            historicoService.registrar(
+                "Correspondencia",
+                id,
+                "EXCLUIR",
+                "Correspondência de '" + correspondencia.getRemetente() + "' excluída."
+            );
+            log.info("Historico de exclusão registrado para correspondência id={}", id);
+        } catch (Exception e) {
+            log.error("Falha ao registrar historico de exclusão para id={}: {}", id, e.getMessage());
+            // não rethrow — historico falhar não deve impedir operação principal já realizada
+        }
+    }
+
+    /**
+     * Atualiza parcialmente uma correspondência existente.
+     */
+    public Correspondencia atualizarCorrespondencia(Long id, Correspondencia updates) {
+    Correspondencia correspondencia = correspondenciaRepository.findById(id)
+        .orElseThrow(() -> new APIExceptions("Correspondência não encontrada com ID: " + id));
+
+    // Atualiza apenas campos não-nulos do objeto de updates
+    if (updates.getRemetente() != null) correspondencia.setRemetente(updates.getRemetente());
+    if (updates.getNomeEmpresaConexa() != null) correspondencia.setNomeEmpresaConexa(updates.getNomeEmpresaConexa());
+    if (updates.getStatusCorresp() != null) correspondencia.setStatusCorresp(updates.getStatusCorresp());
+    if (updates.getDataAvisoConexa() != null) correspondencia.setDataAvisoConexa(updates.getDataAvisoConexa());
+    if (updates.getFotoCorrespondencia() != null) correspondencia.setFotoCorrespondencia(updates.getFotoCorrespondencia());
+
+    Correspondencia atualizada = correspondenciaRepository.save(correspondencia);
 
     historicoService.registrar(
         "Correspondencia",
-        id,
-        "EXCLUIR",
-        "Correspondência de '" + correspondencia.getRemetente() + "' excluída."
+        atualizada.getId(),
+        "ATUALIZAR",
+        "Correspondência atualizada"
     );
+
+    return atualizada;
     }
 
 }
